@@ -1,0 +1,109 @@
+package proj;
+
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.Point;
+import java.awt.Toolkit;
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+import java.awt.image.BufferedImage;
+import javax.swing.ImageIcon;
+import javax.imageio.ImageIO;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+
+
+
+public class Panneau extends JPanel {
+	
+	//### Appel des positions des poissons
+	protected List<Sardine> afficheSardine;
+	protected List<Obstacle> afficheObstacle;
+	protected List<Predateur> affichePredateur;
+	
+	
+	
+	public Panneau (List<Sardine> p,List<Obstacle> obstacles,List<Predateur> predateur) {
+		super();
+		this.afficheSardine = p ;
+		this.afficheObstacle = obstacles;	
+		this.affichePredateur = predateur;
+	}	
+	
+	
+	@Override
+	  protected void paintComponent(Graphics g) {
+		
+/*
+		//Permet de mettre l'image de fond, si c'est un try...catch, c'est parce que sinon il y a une erreur
+		try
+        {
+            Image img=ImageIO.read(new File ("ImageOcean/ocean4.png"));
+		g.drawImage(img, 0, 0, 800, 800, this);
+            
+        }
+        catch (Exception e )
+        {
+             
+        }
+*/	  
+		
+//Affichage des poissons
+		for(int i = 0 ; i < this.afficheSardine.size();  i++) {
+			if (afficheSardine.get(i).etreMange(affichePredateur) == true) {
+				afficheSardine.remove(i);
+			}
+			g.setColor(Color.black);
+			int[] posi = afficheSardine.get(i).autresPoints(afficheSardine.get(i).largeur, afficheSardine.get(i).longueur);//Récuperation des points pour former le poisson
+			int[] ptx = {(int)afficheSardine.get(i).position[0], posi[0],posi[4],posi[6], posi[2]};// On fait la liste des x a tracé dans l'ordre
+			int[] pty = {(int)afficheSardine.get(i).position[1], posi[1],posi[5],posi[7], posi[3]};//On fait la liste des y a tracé dans l'ordre
+		//Dessine le poisson sous la forme d'nu Polygone
+			g.fillPolygon(ptx, pty, 5);
+
+		  //affiche des ligne rouges entre les poissons qui doivent s'éloigner
+		  /*g.setColor(Color.red);
+		  List<Poisson> PoissonsdevraitSeloigne = afficheSardine[i].poissonsPercus(afficheSardine,0,afficheSardine[i].rayoninf);
+		  for (Poisson j : PoissonsdevraitSeloigne) {
+			  g.drawLine((int)afficheSardine[i].position[0], (int)afficheSardine[i].position[1],(int) j.position[0], (int) j.position[1]);
+		  }*/
+		  
+		  
+		  //affiche des lignes vertes entre les poissons qui doivent s'aligner
+		  /*g.setColor(Color.green);
+		  List<Poisson> PoissonsAligne = afficheSardine[i].poissonsPercus(afficheSardine,afficheSardine[i].rayoninf,afficheSardine[i].rayonMed);
+		  for (Poisson j : PoissonsAligne) {
+			  g.drawLine(afficheSardine[i].position[0], afficheSardine[i].position[1], j.position[0], j.position[1]);
+		  }*/
+		  
+		  //affiche des lignes jaune entre les poissons qui doivent se rapprocher
+		  /*g.setColor(Color.yellow);
+		  List<Poisson> PoissonsRapproche = afficheSardine[i].poissonsPercus(afficheSardine,afficheSardine[i].rayonMed,afficheSardine[i].rayonsup);
+		  for (Poisson j : PoissonsRapproche) {
+			  g.drawLine(afficheSardine[i].position[0], afficheSardine[i].position[1], j.position[0], j.position[1]);
+		  }*/
+	    	
+	    }		 
+	    
+	    //Affiche les obstacles
+	    for(int i = 0 ; i < this.afficheObstacle.size() ; i++) {
+			 g.setColor(Color.orange);
+			 g.fillOval(this.afficheObstacle.get(i).position[0],this.afficheObstacle.get(i).position[1],this.afficheObstacle.get(i).taille,this.afficheObstacle.get(i).taille);
+			  
+		 }
+	    
+	    for(int i = 0 ; i < this.affichePredateur.size() ; i++) {
+			 g.setColor(Color.RED);
+			 int[] posi = affichePredateur.get(i).autresPoints(affichePredateur.get(i).largeur,affichePredateur.get(i).longueur);//Récuperation des points pour former le poisson
+			 int[] ptx = {(int)affichePredateur.get(i).position[0], posi[0],posi[4],posi[6], posi[2]};// On fait la liste des x a tracé dans l'ordre
+			 int[] pty = {(int)affichePredateur.get(i).position[1], posi[1],posi[5],posi[7], posi[3]};//On fait la liste des y a tracé dans l'ordre
+			 g.fillPolygon(ptx, pty, 5);			  
+		 }
+	}
+
+}
+

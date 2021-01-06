@@ -1,0 +1,29 @@
+package proj;
+
+import javax.swing.JFrame;
+import java.awt.Color;
+import java.util.List;
+
+public class Fenetre extends JFrame {
+	
+	public Fenetre(List<Sardine> p, List<Obstacle> obstacle, List<Predateur> predateur) {
+		this.setTitle("Océan de Poisson");
+		this.setSize(800,800);
+		this.setLocationRelativeTo(null);
+	
+	// Instanciation d'un panneau
+	Panneau pan = new Panneau(p,obstacle, predateur);
+	
+	// Si on ferme la fenêrte ça arrête tout
+	this.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+	
+	//On met le panneau dans la fenêtre
+	this.setContentPane(pan);
+	
+	// On rend visible la fenêtre avec le panneau
+	this.setVisible(true);
+	
+	
+	}
+
+}

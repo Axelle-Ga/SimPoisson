@@ -1,0 +1,21 @@
+package proj;
+
+public class Obstacle {
+	
+	protected int[] position;
+	protected double[] positionCentre;
+	protected int taille;
+	private String forme;
+	
+	public Obstacle(int x, int y, int taille) {
+		
+		this.position = new int[2];
+		this.position[0]=x;
+		this.position[1]=y;
+		this.taille = taille;
+		this.positionCentre = new double[2];
+		this.positionCentre[0] = x + taille/2;
+		this.positionCentre[1] = y + taille/2;
+	}
+
+}

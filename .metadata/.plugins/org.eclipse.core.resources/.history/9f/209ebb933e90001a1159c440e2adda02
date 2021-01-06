@@ -1,0 +1,590 @@
+package proj;
+
+import java.awt.Point;
+import java.util.ArrayList;
+import java.util.List;
+
+public class Poisson {
+	
+	protected Obstacle obsPlusProche;
+	protected int[] position;
+	protected double[] vitesse;
+	private double taille = 7;
+	private double longueur = 2;
+	protected double rayoninf = 20;
+	protected double rayonMed = 50;
+	protected double rayonsup = 80;
+	protected double angleMax = Math.PI/4; //angle en radian
+	protected double orientation;
+	protected double Vnorm=10;
+	protected double visionPoisson = 20;//rayon du cercle pour la comparaison avec les autres poissons pour ne pas les toucher
+	protected double angleDePerception = Math.toRadians(165); //angle moitié du champ de vision
+	
+	
+	public Poisson (int x , int y , double or ) {
+		this.position = new int[2];
+		this.position[0] = x % 750;
+		this.position[1] = y % 750;
+		this.orientation = Math.toRadians(or);
+		
+		this.vitesse = new double[2];
+		this.vitesse[0] = Math.sin(orientation);
+		this.vitesse[1] = Math.cos(orientation);
+		this.normaliseVitesse();
+
+	}
+	
+///////////////AJOUT///////////////////
+protected boolean etreMange(List<ObstacleMobile> predateur) {
+for (int i=0; i<predateur.size();i++) {
+if (Point.distance(predateur.get(i).position[0],predateur.get(i).position[1], this.position[0], this.position[1])<rayoninf) {
+	return true;
+	}
+}
+return false;
+}
+
+
+public List<ObstacleMobile> PredateurPercus(List<ObstacleMobile> listPredateur, double rayonMin, double rayonMax){
+/*Retourne sous forme d'arraylist les obstacles perçus ie les poissons dont la position
+*  dans le cercle de centre la position du poisson étudié et de rayon : rayonMax et à 
+*  l'éxtérieur du cercle de centre la pos du poisson étudié et de rayon : rayon min
+*  Et qui sont dans le champ de vision
+*/
+
+//On crée un arrayList dans laquelle on va stocker les poissons perçus
+List<ObstacleMobile> PredateursVus = new ArrayList<>();
+
+for (ObstacleMobile i : listPredateur) {
+
+//On calcul la distance du poisson à l'obstacle i
+double dx = this.position[0]-i.position[0];
+double dy = this.position[1]-i.position[1];
+double d = (Math.sqrt(Math.pow(dx, 2)+Math.pow(dy, 2))-(i.taille/2));
+
+
+if (d<rayonMax /*&& this.ObstacleDansChampsDeVision(i)==true*/) {
+	
+	//Si le poissons est dans le cercle de perception on le rajoute à l'arraylist
+	PredateursVus.add(i);				
+}
+}
+return(PredateursVus);
+}
+
+
+protected double[] vecteurEvitePredateur(List<ObstacleMobile> predateurs) {
+double[] vecteurEvite = {0,0};
+List<ObstacleMobile> PredateurVus = PredateurPercus(predateurs,0,50);
+for(ObstacleMobile i : PredateurVus) {
+double dist = Point.distance(position[0], position[1], i.position[0],i.position[1]);
+double dX = position[0]-i.position[0];
+double dY = position[1]-i.position[1];
+if(dist<0) {
+	vecteurEvite[0] += -this.vitesse[0];
+	vecteurEvite[1] += -this.vitesse[1];
+	System.out.println("poisson dans l'obstacle");
+	return(vecteurEvite);
+	}			
+vecteurEvite[0] += i.taille*dX;
+vecteurEvite[1] += i.taille*dY;
+}
+return(normerVecteur(vecteurEvite));
+}
+
+//Plus des changements dans décisions
+///////////////FIN AJOUT///////////////////
+	
+	//Normalise le vecteur vitesse
+	protected void normaliseVitesse() {
+		double nv = this.normVit();
+		this.vitesse[0] = this.vitesse[0]/nv; 
+		this.vitesse[1] = this.vitesse[1]/nv;
+	}
+	
+	//Recupère la norm du vecteur vitesse
+	protected double normVit() {
+		
+		double norm = Math.sqrt(Math.pow(this.vitesse[0], 2) + Math.pow(this.vitesse[1],2));
+		return(norm);
+	}
+	
+	public static double[] normerVecteur(double[] vecteur) {
+		//Normalise le vecteur
+		double normeVect =Math.sqrt(Math.pow(vecteur[0], 2)+Math.pow(vecteur[1], 2));
+		if(normeVect == 0) {
+			return(vecteur);
+		}
+		vecteur[0]= vecteur[0]/normeVect;
+		vecteur[1]= vecteur[1]/normeVect;
+		return(vecteur);
+	}
+	
+	protected void orienter(double angle) {
+		this.orientation = angle;
+		this.vitesse[0] = (int)(Math.sin(this.orientation)*3);
+		this.vitesse[1] = (int)(Math.cos(this.orientation)*3);
+	}
+	
+	
+	protected void orienter(double vitx,double vity) {
+		
+		this.vitesse[0] = vitx;
+		this.vitesse[1] = vity;
+		this.orientation = Math.atan2(vity,vitx);
+	}
+	
+	
+	protected void orienter(double[] vit) {
+		
+		this.vitesse[0] = vit[0];
+		this.vitesse[1] = vit[1];
+		this.orientation = Math.atan2(this.vitesse[1],this.vitesse[0]);
+	}
+	
+	
+	//Fait avancer le poisson
+	protected void avancer(int t) {             // t : temps entre deux positions
+		this.position[0] = (int)(this.position[0] + this.vitesse[0]*Vnorm*t)%800 ;
+		this.position[1] = (int)(this.position[1] + this.vitesse[1]*Vnorm*t)%750 ;
+		
+		if(this.position[0]<0) {
+			this.position[0] = this.position[0]+800;
+		}
+		
+		if(this.position[1]<0) {
+			this.position[1] = this.position[1]+750;
+		}
+	}
+	
+	//Retourne le vecteur pour s'aligner
+	protected double[] vecteurAligner(List<Poisson> listPoisson) {
+		/*Fonctionne, mais les poissons finissent par aller en bas à droite -> comprendre pourquoi*/
+		double[] vecteurAligne = {0, 0};
+		List<Poisson> poissonPercu = poissonsPercus(listPoisson, this.rayoninf, this.rayonMed);	//On récupère tous les poissons perçus par le poisson
+		if (poissonPercu.isEmpty()) {
+			return(vecteurAligne);	//Si il n'y a pas de poissons perçus on renvoie le vecteur {0,0}
+			}
+		int nbrPoissonProche = 0;		//On initialise un compteur de poisson
+		double somme_orientation = 0;	//On initialise la somme des orientations
+		for( Poisson i : poissonPercu) {
+			somme_orientation += i.orientation;		//On somme les orientattion des poissons perçue
+			nbrPoissonProche += 1;
+			}
+		double moyenne_orientation = somme_orientation/nbrPoissonProche;	//On calcule la moyenne
+		vecteurAligne[0] = Math.sin(moyenne_orientation);	//On calcul le vecteur que doit suivre le poisson pour s'aligner
+		vecteurAligne[1] = Math.cos(moyenne_orientation);
+		return(normerVecteur(vecteurAligne));
+	}
+	
+	//Retourne le vecteur pour se rapprocher de la position moyenne
+	protected double[]  vecteurRapprocherMoy(List<Poisson> listPoisson) {
+		List<Poisson> poissonPercu = poissonsPercus(listPoisson, this.rayonMed, this.rayonsup);	//On récupère tous les poissons perçus par le poisson
+		double[] vecteurRapproche = {0, 0};
+		if (poissonPercu.isEmpty()) {
+			return(vecteurRapproche);	//Si il n'y a pas de poissons perçu on renvoie {0,0}
+		}
+		double somme_x = 0;	//On initialise la somme des possition en x
+		double somme_y = 0;	//On initialise la somme des possition en y
+		double nbPoisson = 0;	//On initialise un compteur
+		for (Poisson i : poissonPercu) {
+			somme_x += i.position[0];	//On parcourt la liste des poissons pour calculer les 2 sommes
+			somme_y += i.position[1];
+			nbPoisson += 1;
+		}
+		double moy_x = somme_x/nbPoisson;	//On calcul la moyenne en x
+		double moy_y = somme_y/nbPoisson;	//On calcul la moyenne en y
+		vecteurRapproche[0]=moy_x-this.position[0];	//On calcul le vecteur vitesse pour se rapprocher de la position moyenne
+		vecteurRapproche[1]=moy_y-this.position[1];
+		return(normerVecteur(vecteurRapproche));
+	}
+	
+	protected double[] vecteurEloigner(List<Poisson> listPoisson) {
+		List<Poisson> poissonPercu = poissonsPercus(listPoisson, 0, this.rayoninf);	//On récupère tous les poissons perçus par le poisson
+		double[] vecteurEloigne = {0, 0};
+		if (poissonPercu.isEmpty()) {
+			return(vecteurEloigne);		//Si il n'a a pas de poissons perçus on renvoie {0,0}
+		}
+		double somme_vitX_away = 0;	//On initialise à 0 la somme des vitesses en x
+		double somme_vitY_away = 0;	//On initialise à 0 la somme des vitesses en y
+		double nb_poisson=0;		//On initialise un compteur
+		for( Poisson i : poissonPercu) {
+			somme_vitX_away += -(i.position[0]- position[0]);	//On calcul les sommes
+			somme_vitY_away +=-(i.position[1]- position[1]);
+			nb_poisson +=1;
+		}
+		vecteurEloigne[0] = somme_vitX_away/nb_poisson; 	// moyenne des vitesses en x pour s'éloigner
+		vecteurEloigne[1] = somme_vitY_away/nb_poisson;		// moyenne des vitesses en x pour s'éloigner
+		return(normerVecteur(vecteurEloigne));	
+	}	
+	
+	
+	protected double[] vecteurEviter2(List<Obstacle> obstacle) {
+		double[] vecteurEvite = {0,0};
+		List<Obstacle> ObstaclesVus = ObstaclesPercus(obstacle,0,50);
+		for(Obstacle i : ObstaclesVus) {
+			double dist = Point.distance(position[0], position[1], i.positionCentre[0],i.positionCentre[1]);
+			double dX = position[0]-i.positionCentre[0];
+			double dY = position[1]-i.positionCentre[1];
+			if(dist<0) {
+				vecteurEvite[0] += -this.vitesse[0];
+				vecteurEvite[1] += -this.vitesse[1];
+				System.out.println("poisson dans l'obstacle");
+				return(vecteurEvite);
+				}			
+			vecteurEvite[0] += i.taille*dX;
+			vecteurEvite[1] += i.taille*dY;
+			}
+		return(normerVecteur(vecteurEvite));
+	}
+	
+	
+	protected double[] vecteurEviter3(List<Obstacle> obstacle) {
+		
+		double[] vecteurEvite = {0,0};
+		
+		List<Obstacle> ObstaclesVus = ObstaclesPercus(obstacle,0,50);
+		
+		for(Obstacle i : ObstaclesVus) {
+			
+			double dx = position[0]-i.positionCentre[0];
+			double dy = position[1]-i.positionCentre[1];
+			double dist =Math.sqrt(Math.pow(dx, 2)+Math.pow(dy, 2))-(i.taille/2);
+			if(dist<0) {
+				System.out.println("poisson dans l'obstacle");
+			}
+			double alpha = 0;
+			
+			//Poisson (this) en bas à gauche de l'autre poisson
+			if (dx<=0 && dy>=0) {
+				//On calcul alpha (dépend de la position relative)
+				alpha =Math.PI-Math.atan(Math.abs(dx/dy));
+			}
+			
+			//Poisson (this) en bas à droite de l'autre poisson
+			else if (dx>=0 && dy>=0) {
+				
+				alpha = Math.PI+Math.atan(Math.abs(dx/dy));
+			}
+			
+			//Poisson (this) en haut à droite de l'autre poisson
+			else if (dx>=0 && dy<=0) {
+				
+				alpha = 2*Math.PI - Math.atan(Math.abs(dx/dy));
+			}
+			
+			//Poisson (this) en haut à gauche de l'autre poisson
+			else if (dx<=0 && dy<=0) {
+				
+				alpha = Math.atan(Math.abs(dx/dy));				
+			}
+			
+			if(alpha-this.orientation>0) {
+				vecteurEvite[0] += this.vitesse[1];
+				vecteurEvite[1] += -this.vitesse[0];
+			}
+			else if(alpha-this.orientation<=0) {
+				vecteurEvite[0] += -this.vitesse[1];
+				vecteurEvite[1] += this.vitesse[0];
+			}
+		}
+		
+		//On normalise le vecteur d'évitement
+		double normeVect =Math.sqrt(Math.pow(vecteurEvite[0], 2)+Math.pow(vecteurEvite[1], 2));
+		if (normeVect==0) {
+			return(vecteurEvite);
+		}
+		vecteurEvite[0]= vecteurEvite[0]/normeVect;
+		vecteurEvite[1]= vecteurEvite[1]/normeVect;
+		//System.out.println(vecteurEloigne[0]+" , "+vecteurEloigne[1]);
+		
+		return(vecteurEvite);
+		}
+	
+	
+	protected double[] vecteurEviter(List<Obstacle> obstacle) {
+		
+		double[] vecteurEvite = {0,0};
+		
+		//Calcul de beta ouverture d'angle pas possible à avoir
+		Obstacle obsAEvite = null;
+		double h = 800;
+		
+		
+		for(int i = 0; i<obstacle.size(); i++) {
+			obsPlusProche = obstacle.get(i); 
+			double test = Point.distance(position[0],position[1],obstacle.get(i).positionCentre[0],obstacle.get(i).positionCentre[1]);
+			
+			if(test<(obstacle.get(i).taille/2) && test<h ) {
+				
+				h = test;
+				obsAEvite = obstacle.get(i);
+				
+			}
+			
+			
+		}
+			if(obsAEvite!= null && 0<h) {
+				
+				double beta = Math.atan((obsAEvite.taille)/h);//Beta est l'angle d'ouverture du poisson par rapport à l'obstacle
+				
+				
+				double[] vectPos = new double[2];
+				vectPos[0] = (obsAEvite.positionCentre[0] - position[0]);
+				vectPos[1] = (obsAEvite.positionCentre[1] - position[1]);
+				
+				
+				double or = Math.atan2(vitesse[0],vitesse[1]);
+				double anglePos = Math.atan2(vectPos[0],vectPos[1]);
+				
+				
+				double alpha = 0;
+				
+				if(vitesse[0] <= 0 && vectPos[0] > 0 && vitesse[1] < 0 && vectPos[1] < 0) {
+					alpha =2*Math.PI + or - anglePos;
+					
+				}
+				
+				if(vitesse[0] >= 0 && vectPos[0] < 0 && vitesse[1] < 0 && vectPos[1] < 0) {
+					alpha =-(2*Math.PI - or + anglePos);
+					
+				}
+				else{
+					alpha = or - anglePos;
+				}
+				
+				if(Math.abs(alpha) < beta + 2*Math.PI/180) {
+					
+					
+					
+					if( angleMax < Math.abs(beta - alpha)) {
+						
+						obsPlusProche = obsAEvite;
+						if(alpha<=0) {
+							vecteurEvite[0] = position[1]-obsAEvite.positionCentre[1];
+							vecteurEvite[1] = position[0]-obsAEvite.positionCentre[0];
+						}
+						if(alpha>0) {
+							vecteurEvite[0] = -(position[1]-obsAEvite.positionCentre[1]);
+							vecteurEvite[1] = -(position[0]-obsAEvite.positionCentre[0]);
+						}
+					}
+					if( angleMax > Math.abs(beta- alpha)) {
+						
+						obsPlusProche = obsAEvite;
+						if(alpha<=0) {
+							vecteurEvite[0] = position[1]-obsAEvite.positionCentre[1];
+							vecteurEvite[1] = position[0]-obsAEvite.positionCentre[0];
+						}
+						if(alpha>0) {
+							vecteurEvite[0] = -(position[1]-obsAEvite.positionCentre[1]);
+							vecteurEvite[1] = -(position[0]-obsAEvite.positionCentre[0]);
+						}
+					}
+				}
+			}
+			double normeVect =Math.sqrt(Math.pow(vecteurEvite[0], 2)+Math.pow(vecteurEvite[1], 2));
+			if(normeVect==0) {
+				return(vecteurEvite);
+			}
+			vecteurEvite[0]= vecteurEvite[0]/normeVect;
+			vecteurEvite[1]= vecteurEvite[1]/normeVect;
+			return(vecteurEvite);
+		}
+			
+	//Permet de récuperer des coordonnées de points afin de tracer un poisson avec la bonne orientation
+	protected int[] autresPoints() {
+		
+		double x1 = position[0] - taille*vitesse[0]*4/7+vitesse[1]*longueur;
+		double y1 = position[1] - taille*vitesse[1]*4/7-vitesse[0]*longueur;
+		
+		double x2 = position[0] - taille*vitesse[0]*4/7-vitesse[1]*longueur;
+		double y2 = position[1] - taille*vitesse[1]*4/7+vitesse[0]*longueur;
+		
+		double x3 = x2 - taille*(vitesse[0])*3/7;
+		double y3 = y2 - taille*(vitesse[1])*3/7;
+		
+		double x4 = x1 - taille*(vitesse[0])*3/7;
+		double y4 = y1 - taille*(vitesse[1])*3/7;
+		
+		int[] positions = {(int)(x1),(int)(y1),(int)(x2),(int)(y2),(int)(x3),(int)(y3),(int)(x4),(int)(y4)};
+		return (positions);
+	}
+	
+	
+	protected void decision(List<Obstacle> o, List<Poisson> p, List<ObstacleMobile> predateur) {//Fonction qui permet de faire tous les déplacements (moyenne) peut être changé
+		
+		//On définit les coeff pour le vecteur vitesse final
+		double coef_Rapproche = 0.5;
+		double coeff_Aligne = 0.4;
+		double coeff_Eloigne = 0.5;
+		double coeff_Evite = 0.8;
+		
+		//On récupère les differents vecteurs vitesses
+		double[] vitSeRapproche = vecteurRapprocherMoy(p);
+		double[] vitSeloigne = vecteurEloigner(p);
+		double[] vitSaligne = vecteurAligner(p);
+		double[] vitEvite = vecteurEviter2(o);
+		double[] vitEvitePredateur = vecteurEvitePredateur(predateur);
+		
+		//Si le poisson est dans l'obstacle il rebondi radicalement  
+		//Si le poisson est dans le prédateur il est mangé
+		if(vitEvite[0]==-this.vitesse[0] && vitEvite[1]==-this.vitesse[1]) {
+			orienter(-this.vitesse[0],-this.vitesse[1]);
+			normaliseVitesse();
+		}
+		
+		//On definit le nouveau vecteur vitesse comme la somme des différents vecteurs vitesse
+		double[] vitNouvelle = new double[2];
+		vitNouvelle[0] = coef_Rapproche*vitSeRapproche[0]+coeff_Eloigne*vitSeloigne[0]+coeff_Aligne*vitSaligne[0]+coeff_Evite*(vitEvite[0]+vitEvitePredateur[0]);
+		vitNouvelle[1] = coef_Rapproche*vitSeRapproche[1]+coeff_Eloigne*vitSeloigne[1]+coeff_Aligne*vitSaligne[1]+coeff_Evite*(vitEvite[1]+vitEvitePredateur[1]);		
+		
+		//On calcul la norme de vecteur
+		double normeVect =Math.sqrt(Math.pow(vitNouvelle[0], 2)+Math.pow(vitNouvelle[1], 2));
+		
+		//Si la norme et nulle le poisson continu d'avancer
+		if( normeVect==0.0) {
+			orienter(this.vitesse);
+			normaliseVitesse();
+		}
+		else{
+			//on rajoute la nouveau vecteur vitesse à celui du poisson
+			vitNouvelle[0]= this.vitesse[0] +vitNouvelle[0];
+			vitNouvelle[1]= this.vitesse[1] +vitNouvelle[1];
+			orienter(vitNouvelle);
+			
+			//Et on le norme
+			normaliseVitesse();
+		}
+	}
+	
+	
+	public List<Poisson> poissonsPercus(List<Poisson> listPoisson, double rayonMin, double rayonMax){
+		/*Retourne sous forme d'arraylist les poissons perçus ie les poissons dont la position
+		 *  dans le cercle de centre la position du poisson étudié et de rayon : rayonMax et à 
+		 *  l'éxtérieur du cercle de centre la pos du poisson étudié et de rayon : rayon min
+		 *  Et qui sont dans le champ de vision
+		 */
+		
+		//On crée un arrayList dans laquelle on va stocker les poissons perçus
+		List<Poisson> Poissons = new ArrayList<>();	
+		
+		for (Poisson i : listPoisson) {
+			//On calcul la distance du poisson à l'obstacle i
+			double d = Point.distance(this.position[0], this.position[1], i.position[0], i.position[1]);
+			
+			if (d>rayonMin && d<rayonMax && this.estDansChampsDeVision(i)==true) {
+				Poissons.add(i);	//Si le poissons est dans le cercle de perception on le rajoute à l'arraylist			
+			}
+		}
+		return(Poissons);
+	}
+	
+	
+	//Renvoie les deux angles limites du champs de vision
+	protected double[] champsDeVision() {
+		
+		//angleDePerception correspond à la moitié de l'angle du cdv total
+		
+		//On renvoie les deux angles limite sous forme de tableau : {angleMin,angleMax}
+		
+		double[] champDeVision = new double[2];
+		
+		//angleMin (je prend 2 fois le modulo pour avoir une valeur positive)
+		champDeVision[0] = (((this.orientation - this.angleDePerception)%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
+		
+		//angleMin (je prend 2 fois le modulo pour avoir une valeur positive)
+		champDeVision[1] = (((this.orientation + this.angleDePerception)%(2*Math.PI))+(2*Math.PI))%(2*Math.PI);
+		return(champDeVision);
+		}
+	
+	//Renvoie si true si le poisson est dans le champs de vision, false sinon
+	protected boolean estDansChampsDeVision(Poisson poisson) {
+		double[] cdvision = this.champsDeVision();	//On récupère le champs de vision du poisson
+		double alpha = this.angleOrigineDeuxObjets(poisson);		//On va calculer l'angle entre l'origine et la droite formée par les 2 poissons
+		if (alpha>=cdvision[0] || alpha<=cdvision[1]) {	//Si le poisson est dans le cdv on retourne true sinon false
+			return (true);
+		}			
+		return(false);
+	}
+	
+	
+	//Renvoie si true si l'obstacle est dans le champs de vision, false sinon
+	protected boolean ObstacleDansChampsDeVision(Obstacle obstacle) {
+		double[] cdvision = this.champsDeVision();	//On récupère le champs de vision du poisson
+		double alpha = this.angleOrigineDeuxObjets(obstacle);	//angle entre l'origine et la droite formée par les 2 poissons
+		if (alpha>=cdvision[0] || alpha<=cdvision[1]) {
+			return (true);	//Si le poisson est dans le cdv on retourne true sinon false
+		}
+		return(false);
+	}
+	
+	public List<Obstacle> ObstaclesPercus(List<Obstacle> listObstacles, double rayonMin, double rayonMax){
+		/*Retourne sous forme d'arraylist les obstacles perçus ie les poissons dont la position
+		 *  dans le cercle de centre la position du poisson étudié et de rayon : rayonMax et à 
+		 *  l'éxtérieur du cercle de centre la pos du poisson étudié et de rayon : rayon min
+		 *  Et qui sont dans le champ de vision
+		 */
+		
+		//On crée un arrayList dans laquelle on va stocker les poissons perçus
+		List<Obstacle> ObstaclesVus = new ArrayList<>();
+		
+		for (Obstacle i : listObstacles) {
+			
+			//On calcul la distance du poisson à l'obstacle i
+			double dx = this.position[0]-i.positionCentre[0];
+			double dy = this.position[1]-i.positionCentre[1];
+			double d = (Math.sqrt(Math.pow(dx, 2)+Math.pow(dy, 2))-(i.taille/2));
+			
+			
+			if (d<rayonMax /*&& this.ObstacleDansChampsDeVision(i)==true*/) {
+				
+				//Si le poissons est dans le cercle de perception on le rajoute à l'arraylist
+				ObstaclesVus.add(i);				
+			}
+		}
+		return(ObstaclesVus);
+	}
+	
+	protected double angleOrigineDeuxObjets(Poisson poisson) {
+		double alpha = 0;	//angle entre l'origine et la droite formée par les 2 poissons
+		double dx = this.position[0]-poisson.position[0];	//On calcul la distance du poisson à l'autre poisson
+		double dy = this.position[1]-poisson.position[1];
+		if (dx<=0 && dy>=0) {	//Poisson en bas à gauche de l'obstacle
+			alpha =Math.PI-Math.atan(Math.abs(dx/dy));	//On calcul alpha (dépend de la position relative)
+		}
+		else if (dx>=0 && dy>=0) {	//Poisson en bas à droite de l'obstacle
+			alpha = Math.PI+Math.atan(Math.abs(dx/dy));
+		}
+		else if (dx>=0 && dy<=0) {	//Poisson en haut à droite de l'obstacle
+			alpha = 2*Math.PI - Math.atan(Math.abs(dx/dy));
+		}
+		else if (dx<=0 && dy<=0) {	//Poisson en haut à gauche de l'obstacle
+			alpha = Math.atan(Math.abs(dx/dy));
+		}
+		return(alpha);
+	}
+	
+	protected double angleOrigineDeuxObjets(Obstacle obstacle) {
+		double alpha = 0;	//angle entre l'origine et la droite formée par les 2 poissons
+		double dx = this.position[0]-obstacle.positionCentre[0];	//On calcul la distance du poisson à l'autre poisson
+		double dy = this.position[1]-obstacle.positionCentre[1];
+		if (dx<=0 && dy>=0) {	//Poisson en bas à gauche de l'obstacle
+			alpha =Math.PI-Math.atan(Math.abs(dx/dy));	//On calcul alpha (dépend de la position relative)
+		}
+		else if (dx>=0 && dy>=0) {	//Poisson en bas à droite de l'obstacle
+			alpha = Math.PI+Math.atan(Math.abs(dx/dy));
+		}
+		else if (dx>=0 && dy<=0) {	//Poisson en haut à droite de l'obstacle
+			alpha = 2*Math.PI - Math.atan(Math.abs(dx/dy));
+		}
+		else if (dx<=0 && dy<=0) {	//Poisson en haut à gauche de l'obstacle
+			alpha = Math.atan(Math.abs(dx/dy));
+		}
+		return(alpha);
+	}
+	
+	
+
+}
+	
